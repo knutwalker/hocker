@@ -57,11 +57,11 @@ formatYamlError e = ["Config: " ++ show e]
 formatConfig :: Config -> [String]
 formatConfig cfg =
   ["Config:"] ++
-    formats "  image      " (imageName cfg) ++
-    formats "  container  " (containerName cfg) ++
-    formats "  dockerdir  " (dockerDirectory cfg) ++
-    formats "  hostname   " (hostName cfg) ++
-    formats "  ports      " (map show $ portMappings cfg) ++
-    formats "  build      " (runBefore cfg) ++
-    formats "  arguments  " (startArgs cfg) ++
-    formats "  background " (daemonized cfg)
+    formats "  image       " (imageName cfg) ++
+    formats "  container   " (containerName cfg) ++
+    formats "  dockerdir   " (dockerDirectory cfg) ++
+    formats "  hostname    " (hostName cfg) ++
+    formats "  ports       " (map show $ portMappings cfg) ++
+    formats "  build       " (runBefore cfg) ++
+    formats "  arguments   " (startArgs cfg) ++
+    formats "  background  " (daemonized cfg)

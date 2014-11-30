@@ -6,6 +6,7 @@ import           Data.Monoid           (mempty, (<>))
 import           Data.Yaml
 import           Hocker.Data
 import           Hocker.Validation
+import           Hocker.Version
 import           System.Console.GetOpt
 import           System.Exit           (ExitCode (..))
 import           System.IO             (stderr, stdout)
@@ -72,13 +73,11 @@ options =
 {------- help formatting ----------}
 
 usage :: [String] -> FError -> HelpOutput
-usage cfg (Help fs)               = (usage cfg (ParseError [] fs)) { to = stdout, exit = ExitSuccess }
-usage _   (Version _)             = succeedWith (progName ++ " " ++ version)
-  where progName = "hocker"
-        version  = "v0.9.0"
-usage cfg (NoAction fs)           = usage cfg (Version fs) <> (usage cfg (Help fs)) { to = stderr }
-usage _   (UnknownAction a _)     = failWith $ "Unkown action: " ++ a
-usage _   (MultipleActions as _)  = failWith msg
+usage cfg (Help fs)              = (usage cfg (ParseError [] fs)) { to = stdout, exit = ExitSuccess }
+usage _   (Version _)            = succeedWith (programName ++ " " ++ programVersion)
+usage cfg (NoAction fs)          = usage cfg (Version fs) <> (usage cfg (Help fs)) { to = stderr }
+usage _   (UnknownAction a _)    = failWith $ "Unkown action: " ++ a
+usage _   (MultipleActions as _) = failWith msg
   where msg = unlines ["Multiple actions given (" ++ unwords as ++ ")", "Can only do one at a time"]
 usage cfg (ParseError es _)      = failWith $ formatUsage es options cfg
 
