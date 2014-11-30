@@ -22,7 +22,7 @@ instance Format (Maybe String) where
   format = id
 
 instance Format Bool where
-  format b = Just $ if b then "yes" else "no"
+  format b = if b then Just "yes" else Nothing
 
 instance Format [String] where
   format [] = Nothing

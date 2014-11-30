@@ -59,7 +59,8 @@ execute logs (Running cmd)  _ = do
 call :: Bool -> String -> IO (ExitCode, String)
 call logs c =
   let cpOpts = (shell c) { std_out = CreatePipe
-                         , std_err = CreatePipe }
+                         , std_err = CreatePipe
+                         , delegate_ctlc = True }
   in do
     (_, Just hout, Just herr, ph) <- createProcess cpOpts
     hdout                         <- hDuplicate hout

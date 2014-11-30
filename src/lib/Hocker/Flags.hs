@@ -49,7 +49,7 @@ usage :: [String] -> FError -> HelpOutput
 usage cfg  Help                = (usage cfg (ParseError [])) { to = stdout, exit = ExitSuccess }
 usage _    Version             = succeedWith (progName ++ " " ++ version)
   where progName = "hocker"
-        version  = "v0.8.0"
+        version  = "v0.8.1"
 usage cfg  NoAction            = usage cfg Version <> (usage cfg Help) { to = stderr }
 usage _   (UnknownAction a)    = failWith $ "Unkown action: " ++ a
 usage _   (MultipleActions as) = failWith msg
