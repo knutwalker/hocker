@@ -1,11 +1,12 @@
 module Hocker.IO (runCommands) where
 
-import           Control.Monad   (void, (>=>))
+import           Control.Monad   (void, when, (>=>))
+import           GHC.IO.Handle   (hDuplicate, hGetContents)
 import           Hocker.Commands
 import           Hocker.Data
 import           System.Exit     (ExitCode (..), exitWith)
 import           System.IO       (hPutStrLn, stderr)
-import           System.Process  (readProcessWithExitCode)
+import           System.Process  hiding (runCommand)
 
 
 runCommands :: Flags -> [Command] -> IO ()
@@ -21,43 +22,55 @@ runCommands fs cmds = void $ cfold' cmds Nothing
 
 runCommand :: Flags -> Maybe String -> SysCommand -> IO String
 runCommand fs prev cmd = do
-  logM $  logCommand cmd fs
-  out  <- maybeExecute fs cmd prev
-  logM $  logOutput cmd out fs
+  logM $ logCommand cmd fs
+  out <- maybeExecute (shouldLogOutput cmd fs) fs cmd prev
   return $! out
   where
     logM = maybe (return ()) putStrLn
 
 logCommand :: SysCommand -> Flags -> Maybe String
-logCommand cmd (Flags {dryRun = True}) = Just ("simulating: " ++ show cmd)
+logCommand cmd (Flags {dryRun = True}) =
+                  Just $ "simulating: " ++ show cmd
 logCommand cmd (Flags {quiet = q})
-  | q < 2     = fmap (++ show cmd) $ case cmd of
-    (Checking _)  -> Just "checking "
-    _             -> Just "running "
+  | q < 1     = case cmd of
+    (Checking _) -> Just $ "checking: " ++ show cmd
+    _            -> Just $  "running: " ++ show cmd
   | otherwise = Nothing
 
-logOutput :: SysCommand -> String -> Flags -> Maybe String
-logOutput _ _   (Flags {dryRun = True}) = Nothing
-logOutput (Checking _) _ _              = Nothing
-logOutput _ out (Flags {quiet = q})
-  | q < 1     = Just out
-  | otherwise = Nothing
+shouldLogOutput :: SysCommand -> Flags -> Bool
+shouldLogOutput _ (Flags {dryRun = True}) = False
+shouldLogOutput (Checking _) _            = False
+shouldLogOutput _ (Flags {quiet = q})     = q < 2
 
-maybeExecute :: Flags -> SysCommand -> Maybe String -> IO String
-maybeExecute (Flags {dryRun = True}) _ _ = return ""
-maybeExecute _                  cmd prev = execute cmd prev
+maybeExecute :: Bool -> Flags -> SysCommand -> Maybe String -> IO String
+maybeExecute _    (Flags {dryRun = True}) _ _ = return ""
+maybeExecute logs _                  cmd prev = execute logs cmd prev
 
-execute :: SysCommand -> Maybe String -> IO String
-execute (Checking cmd) x = execute (Running cmd) x
-execute (Running cmd)  _ =
-  do
-    (ec, out, err) <- execute' cmd
-    exitWhenFailed ec err out
-    return out
-    where
-      execute' c = readProcessWithExitCode (head c) (tail c) ""
-      exitWhenFailed e@(ExitFailure _) err out = do
-        putStrLn out
-        hPutStrLn stderr err
-        exitWith e
-      exitWhenFailed _ _ _ = return ()
+execute :: Bool -> SysCommand -> Maybe String -> IO String
+execute logs (Checking cmd) x = execute logs (Running cmd) x
+execute logs (Running cmd)  _ = do
+  (ec, out) <- call logs cmd
+  exitWhenFailed ec
+  return out
+  where
+    exitWhenFailed e@(ExitFailure _) = exitWith e
+    exitWhenFailed _                 = return ()
+
+call :: Bool -> String -> IO (ExitCode, String)
+call logs c =
+  let cpOpts = (shell c) { std_out = CreatePipe
+                         , std_err = CreatePipe }
+  in do
+    (_, Just hout, Just herr, ph) <- createProcess cpOpts
+    hdout                         <- hDuplicate hout
+
+    when logs $ do
+      outbuf <- hGetContents hout
+      mapM_ putStrLn (lines outbuf)
+      errbuf <- hGetContents herr
+      mapM_ (hPutStrLn stderr) (lines errbuf)
+
+    out <- hGetContents hdout
+    ex  <- waitForProcess ph
+
+    return (ex, out)

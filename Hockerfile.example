@@ -1,0 +1,5 @@
+redis:
+  name: some-redis
+  background: true
+  ports:
+    - 6379

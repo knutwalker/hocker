@@ -60,12 +60,12 @@ data RunCommand = RunCommand Flags Action
   deriving (Show, Eq)
 
 data SysCommand =
-    Running  [String]
-  | Checking [String]
+    Running  String
+  | Checking String
 
 instance Show SysCommand where
-  show (Running  cmd) = "'" ++ unwords cmd ++ "'"
-  show (Checking cmd) = "'" ++ unwords cmd ++ "'"
+  show (Running  cmd) = "'" ++ cmd ++ "'"
+  show (Checking cmd) = "'" ++ cmd ++ "'"
 
 data Command =
     Sure SysCommand
@@ -74,12 +74,12 @@ data Command =
 data Config = Config
   { imageName       :: String
   , containerName   :: String
-  , dockerDirectory :: String
+  , dockerDirectory :: Maybe String
   , portMappings    :: [Int]
   , hostName        :: Maybe String
-  , runBefore       :: [String]
+  , runBefore       :: Maybe String
   , daemonized      :: Bool
-  , startArgs       :: [String]
+  , startArgs       :: Maybe String
   } deriving (Show, Eq)
 
 instance FromJSON Config where
@@ -95,23 +95,22 @@ instance FromJSON Config where
       objectsOnly _ _          = False
       parseJson' image (Object i) =
         Config image <$>
-          i .:  "container"            <*>
-          i .:? "dockerfile" .!= "."   <*>
+          i .:  "name"                 <*>
+          i .:? "dockerfile"           <*>
           i .:? "ports"      .!= []    <*>
           i .:? "host"                 <*>
-          i .:: "preStart"             <*>
-          i .:? "daemonized" .!= False <*>
-          i .:: "startArgs"
+          i .:? "preStart"             <*>
+          i .:? "background" .!= False <*>
+          i .:? "startArgs"
       parseJson' img _ = fail $ "Image " ++ img ++ " must be an object"
-      x .:: n = words <$> x .:? n .!= ""
 
 minimalConfig :: String -> String -> Config
 minimalConfig pImageName pContainerName = Config
-  { runBefore       = []
-  , startArgs       = []
+  { runBefore       = Nothing
+  , startArgs       = Nothing
   , imageName       = pImageName
   , containerName   = pContainerName
-  , dockerDirectory = "."
+  , dockerDirectory = Nothing
   , portMappings    = []
   , hostName        = Nothing
   , daemonized      = False

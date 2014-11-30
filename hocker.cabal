@@ -1,5 +1,5 @@
 name:           hocker
-version:        0.6.0
+version:        0.7.0
 homepage:       https://github.com/knutwalker/hocker
 license:        Apache-2.0
 license-file:   LICENSE
@@ -19,6 +19,7 @@ library
     , Hocker.Data
     , Hocker.Flags
     , Hocker.IO
+    , Hocker.Validation
 
   build-depends:
       base >=4.7 && <4.8
