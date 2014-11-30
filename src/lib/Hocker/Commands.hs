@@ -9,10 +9,10 @@ import           Text.Printf
 
 
 commands :: Config -> Action -> Flags -> [Command]
-commands cfg action flags =
-  let b = builds cfg action flags
-      v = vms flags
-      d = dockers cfg action flags
+commands cfg action fs =
+  let b = builds cfg action fs
+      v = vms fs
+      d = dockers cfg action fs
   in b ++ v ++ d
 
 getCommand :: Maybe String -> Command -> Maybe SysCommand

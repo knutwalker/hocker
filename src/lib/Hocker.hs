@@ -11,15 +11,13 @@ import           System.IO       (hPutStrLn)
 
 hocker :: [String] -> IO ()
 hocker args = do
-  parsedConfig <- readConfig
-  let (validatedConfig, validatedFlags) = parseConfigAndFlags parsedConfig args
-  (RunCommand flags action) <- printInvalid validatedFlags
+  let (parsedFlags, hockerLoc) = parseFlags args
+  parsedConfig <- decodeFileEither hockerLoc
+  let (validatedConfig, validatedFlags) = mergeConfigAndFlags parsedConfig parsedFlags
+  (RunCommand fs action) <- printInvalid validatedFlags
   config <- printInvalid validatedConfig
-  let cmds = commands config action flags
-  runCommands flags cmds
-
-readConfig :: IO (Either ParseException Config)
-readConfig = decodeFileEither "./Hockerfile"
+  let cmds = commands config action fs
+  runCommands fs cmds
 
 printInvalid :: Either HelpOutput a -> IO a
 printInvalid (Left (HelpOutput msg h ec)) = do

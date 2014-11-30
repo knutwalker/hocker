@@ -17,6 +17,7 @@ import           System.IO           (Handle, stdout)
 data Flags = Flags
   { linux, dryRun  :: Bool
   , quiet, shallow :: Int
+  , hockerFile     :: Maybe String
   } deriving (Show, Eq)
 
 instance Monoid Flags where
@@ -25,29 +26,71 @@ instance Monoid Flags where
     , dryRun = False
     , quiet  = 0
     , shallow = 0
+    , hockerFile = Nothing
     }
   mappend _ _ = undefined
 
-withLinux :: Flags -> Flags
-withLinux o = o { linux = True }
+type AddFlag = Either FError Flags -> Either FError Flags
 
-withDryRun :: Flags -> Flags
-withDryRun o = o { dryRun = True }
+setLinux :: AddFlag
+setLinux = lrmap (\o -> o { linux = True })
 
-withQuiet :: Flags -> Flags
-withQuiet o = o { quiet = succ . quiet $ o }
+setDryRun :: AddFlag
+setDryRun = lrmap (\o -> o { dryRun = True })
 
-withShallow :: Flags -> Flags
-withShallow o = o { shallow = succ . shallow $ o }
+setQuiet :: AddFlag
+setQuiet = lrmap (\o -> o { quiet = succ . quiet $ o })
+
+setShallow :: AddFlag
+setShallow = lrmap (\o -> o { shallow = succ . shallow $ o })
+
+setHockerFile :: String -> AddFlag
+setHockerFile h = lrmap (\o -> o { hockerFile = Just h })
+
+setHelp :: AddFlag
+setHelp (Right fs) = Left (Help fs)
+setHelp (Left fs) = Left (Help (flags fs))
+
+setVersion :: AddFlag
+setVersion (Right fs) = Left (Version fs)
+setVersion (Left fs) = Left (Version (flags fs))
+
+lrmap :: (Flags -> Flags) -> AddFlag
+lrmap f (Left e) = Left $ flagMap f e
+lrmap f (Right x) = Right $ flagMap f x
+
 
 data FError =
-    Help
-  | Version
-  | NoAction
-  | UnknownAction String
-  | MultipleActions [String]
-  | ParseError [String]
+    Help Flags
+  | Version Flags
+  | NoAction Flags
+  | UnknownAction String Flags
+  | MultipleActions [String] Flags
+  | ParseError [String] Flags
   deriving (Show, Eq)
+
+class FlagContainer a where
+  flags :: a -> Flags
+  flagMap :: (Flags -> Flags) -> a -> a
+
+instance FlagContainer Flags where
+  flags = id
+  flagMap f = f
+
+instance FlagContainer FError where
+  flags (Help fs)              = fs
+  flags (Version fs)           = fs
+  flags (NoAction fs)          = fs
+  flags (UnknownAction _ fs)   = fs
+  flags (MultipleActions _ fs) = fs
+  flags (ParseError _ fs)      = fs
+
+  flagMap f (Help fs)               = Help               $ f fs
+  flagMap f (Version fs)            = Version            $ f fs
+  flagMap f (NoAction fs)           = NoAction           $ f fs
+  flagMap f (UnknownAction a fs)    = UnknownAction a    $ f fs
+  flagMap f (MultipleActions as fs) = MultipleActions as $ f fs
+  flagMap f (ParseError es fs)      = ParseError es      $ f fs
 
 data Action = Start | Stop | Restart | Status | Logs
   deriving (Show, Eq, Ord, Enum)
