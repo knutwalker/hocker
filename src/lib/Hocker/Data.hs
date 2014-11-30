@@ -73,7 +73,7 @@ data Command =
 
 data Config = Config
   { imageName       :: String
-  , containerName   :: Maybe String
+  , containerName   :: String
   , dockerDirectory :: String
   , portMappings    :: [Int]
   , hostName        :: Maybe String
@@ -95,7 +95,7 @@ instance FromJSON Config where
       objectsOnly _ _          = False
       parseJson' image (Object i) =
         Config image <$>
-          i .:? "container"            <*>
+          i .:  "container"            <*>
           i .:? "dockerfile" .!= "."   <*>
           i .:? "ports"      .!= []    <*>
           i .:? "host"                 <*>
@@ -105,16 +105,16 @@ instance FromJSON Config where
       parseJson' img _ = fail $ "Image " ++ img ++ " must be an object"
       x .:: n = words <$> x .:? n .!= ""
 
-minimalConfig :: String -> Config
-minimalConfig pImageName = Config
-  { runBefore   = []
-  , startArgs  = []
-  , imageName      = pImageName
-  , containerName  = Nothing
+minimalConfig :: String -> String -> Config
+minimalConfig pImageName pContainerName = Config
+  { runBefore       = []
+  , startArgs       = []
+  , imageName       = pImageName
+  , containerName   = pContainerName
   , dockerDirectory = "."
-  , portMappings      = []
-  , hostName       = Nothing
-  , daemonized = False
+  , portMappings    = []
+  , hostName        = Nothing
+  , daemonized      = False
   }
 
 data HelpOutput = HelpOutput

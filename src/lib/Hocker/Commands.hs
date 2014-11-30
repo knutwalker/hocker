@@ -8,44 +8,41 @@ import           Hocker.Data
 
 commands :: Config -> Action -> Flags -> [Command]
 commands cfg action flags =
-  let b = buildCommands cfg action flags
-      v = vmCommands flags
-      d = dockerCommands cfg action flags
+  let b = builds cfg action flags
+      v = vms flags
+      d = dockers cfg action flags
   in b ++ v ++ d
 
 getCommand :: Maybe String -> Command -> Maybe SysCommand
 getCommand prev (Unsure cmd p) = const cmd <$> mfilter p prev
 getCommand _    (Sure cmd)     = Just cmd
 
-buildCommands :: Config -> Action -> Flags -> [Command]
-buildCommands (Config { runBefore = cmd@(_:_) }) a fs =
+builds :: Config -> Action -> Flags -> [Command]
+builds (Config { runBefore = cmd@(_:_) }) a fs =
   let shouldBuild = (`elem` [Start, Restart])
       wantToBuild f = not (shallow f || skip f)
-  in  [build | shouldBuild a && wantToBuild fs]
-  where
-    build = running cmd
-buildCommands _ _ _ = []
+  in  [running cmd | shouldBuild a && wantToBuild fs]
+builds _ _ _ = []
 
-vmCommands :: Flags -> [Command]
-vmCommands (Flags { linux = True }) = []
-vmCommands _ = [check, ensure]
+vms :: Flags -> [Command]
+vms (Flags { linux = True }) = []
+vms _ = [check, ensure]
   where
     check = checking ["boot2docker", "status"]
     ensure = conditional ["boot2docker", "start"] ifRunning
     ifRunning = not . isInfixOf "running"
 
-dockerCommands :: Config -> Action -> Flags -> [Command]
-dockerCommands _ Start (Flags {shallow = True}) = docker "start"
-dockerCommands cfg Start _ = map (docker' . ($cfg)) [buildDocker, runDocker]
-dockerCommands _ Stop (Flags {shallow = s}) =
-  let rm = if s then [] else docker "rm"
-  in docker "stop" ++ rm
-dockerCommands cfg Restart f = dockerCommands cfg Stop f ++ dockerCommands cfg Start f
-dockerCommands _ Status _  = docker "ps"
-dockerCommands _ Logs _   = docker "logs"
+dockers :: Config -> Action -> Flags -> [Command]
+dockers cfg Stop  (Flags {shallow = True})  = docker "stop"  cfg
+dockers cfg Start (Flags {shallow = True})  = docker "start" cfg
+dockers cfg Status _                        = docker "ps"    cfg
+dockers cfg Logs   _                        = docker "logs"  cfg
+dockers cfg Stop   _  = docker "stop" cfg  ++ docker "rm" cfg
+dockers cfg Start  _  = [buildDocker cfg    , runDocker cfg]
+dockers cfg Restart f = dockers cfg Stop f ++ dockers cfg Start f
 
-docker :: String -> [Command]
-docker c = [docker' [c, "mc-neo4j"]]
+docker :: String -> Config -> [Command]
+docker c cfg = [docker' [c, containerName cfg]]
 
 docker' :: [String] -> Command
 docker' = running . ("docker" :)
@@ -59,11 +56,11 @@ running = Sure . Running
 conditional :: [String] -> (String -> Bool) -> Command
 conditional = Unsure . Running
 
-buildDocker :: Config -> [String]
-buildDocker cfg = ["build", "-t=" ++ imageName cfg, dockerDirectory cfg]
+buildDocker :: Config -> Command
+buildDocker cfg = docker' ["build", "-t=" ++ imageName cfg, dockerDirectory cfg]
 
-runDocker :: Config -> [String]
-runDocker cfg = ["run"] ++ optionalArgs cfg ++ [imageName cfg]
+runDocker :: Config -> Command
+runDocker cfg = docker' (["run"] ++ optionalArgs cfg ++ [imageName cfg])
 
 optionalArgs :: Config -> [String]
 optionalArgs cfg = concatMap ($cfg) [daemonArgs, portArgs, hostArgs, startArgs, nameArgs]
@@ -82,5 +79,4 @@ hostArgs (Config {hostName = Just h }) = ["-h", h]
 hostArgs _ = []
 
 nameArgs :: Config -> [String]
-nameArgs (Config {containerName = Just n }) = ["--name", n]
-nameArgs _ = []
+nameArgs (Config {containerName = n }) = ["--name", n]

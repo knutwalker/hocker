@@ -68,7 +68,7 @@ usage :: [String] -> FError -> HelpOutput
 usage cfg  Help                = (usage cfg (ParseError [])) { to = stdout, exit = ExitSuccess }
 usage _    Version             = succeedWith (progName ++ " " ++ version)
   where progName = "hocker"
-        version  = "v0.5.0"
+        version  = "v0.6.0"
 usage cfg  NoAction            = usage cfg Version <> (usage cfg Help) { to = stderr }
 usage _   (UnknownAction a)    = failWith $ "Unkown action: " ++ a
 usage _   (MultipleActions as) = failWith msg
@@ -90,7 +90,6 @@ usage cfg (ParseError es)      = failWith msg
 
 failWith :: String -> HelpOutput
 failWith s = HelpOutput s stderr (ExitFailure 1)
-
 
 succeedWith :: String -> HelpOutput
 succeedWith s = mempty { message = s }

@@ -10,18 +10,25 @@ import           System.IO       (hPutStrLn, stderr)
 import           Text.Libyaml    (Event (..))
 
 
-
 hocker :: [String] -> IO ()
 hocker args = do
   parsedConfig <- readConfig
-  let parsedFlags = parseFlags args
-  let configForHelp = either formatError formatConfig parsedConfig
-  flags <- validateFlags configForHelp parsedFlags
-  config <- validateConfig parsedConfig
-  runHocker config flags
+  let (validatedConfig, validatedFlags) = foldFlagsAndConfig parsedConfig args
+  (RunCommand flags action) <- printInvalid validatedFlags
+  config <- printInvalid validatedConfig
+  let cmds = commands config action flags
+  runCommands flags cmds
 
 readConfig :: IO (Either ParseException Config)
 readConfig = decodeFileEither "./Hockerfile"
+
+foldFlagsAndConfig :: Either ParseException Config -> [String] -> (Either HelpOutput Config, Either HelpOutput RunCommand)
+foldFlagsAndConfig parsedConfig args =
+  let parsedFlags = parseFlags args
+      configForHelp = either formatError formatConfig parsedConfig
+      validatedFlags = validateFlags configForHelp parsedFlags
+      validatedConfig = validateConfig parsedConfig
+  in (validatedConfig, validatedFlags)
 
 formatError :: ParseException -> [String]
 formatError (UnexpectedEvent (Just EventStreamEnd) _) = ["Config:", "Unexpected end of Hockerfile"]
@@ -32,12 +39,12 @@ formatError e = ["Config:", show e]
 formatConfig :: Config -> [String]
 formatConfig cfg =
   ["Config:"] ++
-    showList' "  build      " (runBefore cfg) ++
     showStr   "  image      " (imageName cfg) ++
+    showStr   "  container  " (containerName cfg) ++
     showStr   "  dockerdir  " (dockerDirectory cfg) ++
-    showMaybe "  container  " (containerName cfg) ++
     showMaybe "  hostname   " (hostName cfg) ++
     showList' "  ports      " (map show $ portMappings cfg) ++
+    showList' "  build      " (runBefore cfg) ++
     showList' "  arguments  " (startArgs cfg) ++
     showBool  "  daemonize  " (daemonized cfg)
   where
@@ -48,20 +55,22 @@ formatConfig cfg =
     showList' name xs       = [name ++ unwords xs]
     showBool  name x        = [name ++ if x then "yes" else "no"]
 
-validateConfig :: Either ParseException Config -> IO Config
-validateConfig (Left e) = do
-  hPutStrLn stderr $ (unlines . formatError) e
-  exitWith $ ExitFailure 2
-validateConfig (Right cfg) = return cfg
 
-validateFlags :: [String] -> Either FError RunCommand -> IO RunCommand
-validateFlags _   (Right r) = return r
-validateFlags cfg (Left e) = do
-  let (HelpOutput msg h ec) = usage cfg e
+validateFlags :: [String] -> Either FError RunCommand -> Either HelpOutput RunCommand
+validateFlags = lmap . usage
+
+validateConfig :: Either ParseException Config -> Either HelpOutput Config
+validateConfig = lmap errorToHelp
+
+errorToHelp :: ParseException -> HelpOutput
+errorToHelp x = HelpOutput (unlines . formatError $ x) stderr (ExitFailure 2)
+
+lmap :: (a -> b) -> Either a c -> Either b c
+lmap _ (Right r) = Right r
+lmap f (Left  l) = Left (f l)
+
+printInvalid :: Either HelpOutput a -> IO a
+printInvalid (Left (HelpOutput msg h ec)) = do
   hPutStrLn h msg
   exitWith ec
-
-runHocker :: Config -> RunCommand -> IO ()
-runHocker cfg (RunCommand flags action) = do
-  let cmds = commands cfg action flags
-  cfold flags cmds
+printInvalid (Right x) = return x
