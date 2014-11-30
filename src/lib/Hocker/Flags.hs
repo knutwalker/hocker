@@ -23,12 +23,9 @@ parseFlags args =
 
 options :: [OptDescr (Either FError Flags -> Either FError Flags)]
 options =
-  [ Option "s"  ["skip", "no-build"]
-    (NoArg $ fmap withSkip)
-    "Do not execute the configured pre-start build"
-  , Option "w"  ["shallow"]
+  [ Option "sw" ["shallow", "skip"]
     (NoArg $ fmap withShallow)
-    "Do not rebuild the container (just start/stop)"
+    "Skip pre-start steps--One skips the pre build, two skip the docker build"
   , Option "nd"  ["dry-run", "noop"]
     (NoArg $ fmap withDryRun)
     "Only show what would have been done, but don't do it"
@@ -52,7 +49,7 @@ usage :: [String] -> FError -> HelpOutput
 usage cfg  Help                = (usage cfg (ParseError [])) { to = stdout, exit = ExitSuccess }
 usage _    Version             = succeedWith (progName ++ " " ++ version)
   where progName = "hocker"
-        version  = "v0.7.0"
+        version  = "v0.8.0"
 usage cfg  NoAction            = usage cfg Version <> (usage cfg Help) { to = stderr }
 usage _   (UnknownAction a)    = failWith $ "Unkown action: " ++ a
 usage _   (MultipleActions as) = failWith msg

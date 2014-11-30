@@ -15,25 +15,18 @@ import           System.IO           (Handle, stdout)
 
 
 data Flags = Flags
-  { skip, shallow, linux, dryRun :: Bool
-  , quiet                        :: Int
+  { linux, dryRun  :: Bool
+  , quiet, shallow :: Int
   } deriving (Show, Eq)
 
 instance Monoid Flags where
   mempty = Flags
-    { skip  = False
-    , shallow = False
-    , linux = False
+    { linux = False
     , dryRun = False
     , quiet  = 0
+    , shallow = 0
     }
   mappend _ _ = undefined
-
-withSkip :: Flags -> Flags
-withSkip o = o { skip = True }
-
-withShallow :: Flags -> Flags
-withShallow o = o { shallow = True }
 
 withLinux :: Flags -> Flags
 withLinux o = o { linux = True }
@@ -43,6 +36,9 @@ withDryRun o = o { dryRun = True }
 
 withQuiet :: Flags -> Flags
 withQuiet o = o { quiet = succ . quiet $ o }
+
+withShallow :: Flags -> Flags
+withShallow o = o { shallow = succ . shallow $ o }
 
 data FError =
     Help

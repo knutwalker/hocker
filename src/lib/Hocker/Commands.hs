@@ -22,7 +22,7 @@ getCommand _    (Sure cmd)     = Just cmd
 builds :: Config -> Action -> Flags -> [Command]
 builds (Config { runBefore = Just cmd }) a fs =
   let shouldBuild = (`elem` [Start, Restart])
-      wantToBuild f = not (shallow f || skip f)
+      wantToBuild = (<1) . shallow
   in  [running cmd | shouldBuild a && wantToBuild fs]
 builds _ _ _ = []
 
@@ -35,8 +35,8 @@ vms _ = [check, ensure]
     ifRunning = not . isInfixOf "running"
 
 dockers :: Config -> Action -> Flags -> [Command]
-dockers cfg Stop  (Flags {shallow = True})  = docker "stop"  cfg
-dockers cfg Start (Flags {shallow = True})  = docker "start" cfg
+dockers cfg Stop   fs | shallow fs >= 2     = docker "stop"  cfg
+dockers cfg Start  fs | shallow fs >= 2     = docker "start" cfg
 dockers cfg Status _                        = docker "ps"    cfg
 dockers cfg Logs   _                        = docker "logs"  cfg
 dockers cfg Stop   _  = docker "stop" cfg  ++ docker "rm" cfg
