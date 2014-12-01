@@ -12,7 +12,7 @@ import           Text.Libyaml          (Event (..))
 class Format a where
   format :: a -> Maybe String
   formats :: String -> a -> [String]
-  formats name c = maybe [] ((:[]) . (name ++)) $ format c
+  formats name = maybe [] ((:[]) . (name ++)) . format
 
 instance Format String where
   format = Just
