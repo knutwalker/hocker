@@ -64,4 +64,4 @@ formatConfig cfg =
     formats "  ports       " (map show $ portMappings cfg) ++
     formats "  build       " (runBefore cfg) ++
     formats "  arguments   " (startArgs cfg) ++
-    formats "  background  " (daemonized cfg)
+    formats "  interactive " (interactive cfg)

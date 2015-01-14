@@ -15,17 +15,18 @@ import           System.IO           (Handle, stdout)
 
 
 data Flags = Flags
-  { linux, dryRun  :: Bool
-  , quiet, shallow :: Int
-  , hockerFile     :: Maybe String
+  { linux, dryRun, shallow, quick  :: Bool
+  , quiet                          :: Int
+  , hockerFile                     :: Maybe String
   } deriving (Show, Eq)
 
 instance Monoid Flags where
   mempty = Flags
     { linux = False
     , dryRun = False
+    , shallow = False
+    , quick = False
     , quiet  = 0
-    , shallow = 0
     , hockerFile = Nothing
     }
   mappend _ _ = undefined
@@ -38,11 +39,14 @@ setLinux = lrmap (\o -> o { linux = True })
 setDryRun :: AddFlag
 setDryRun = lrmap (\o -> o { dryRun = True })
 
+setShallow :: AddFlag
+setShallow = lrmap (\o -> o { shallow = True })
+
+setQuick :: AddFlag
+setQuick = lrmap (\o -> o { quick = True })
+
 setQuiet :: AddFlag
 setQuiet = lrmap (\o -> o { quiet = succ . quiet $ o })
-
-setShallow :: AddFlag
-setShallow = lrmap (\o -> o { shallow = succ . shallow $ o })
 
 setHockerFile :: String -> AddFlag
 setHockerFile h = lrmap (\o -> o { hockerFile = Just h })
@@ -117,7 +121,7 @@ data Config = Config
   , portMappings    :: [Int]
   , hostName        :: Maybe String
   , runBefore       :: Maybe String
-  , daemonized      :: Bool
+  , interactive     :: Bool
   , startArgs       :: Maybe String
   } deriving (Show, Eq)
 
@@ -134,12 +138,12 @@ instance FromJSON Config where
       objectsOnly _ _          = False
       parseJson' image (Object i) =
         Config image <$>
-          i .:  "name"                 <*>
-          i .:? "dockerfile"           <*>
-          i .:? "ports"      .!= []    <*>
-          i .:? "host"                 <*>
-          i .:? "preStart"             <*>
-          i .:? "background" .!= False <*>
+          i .:  "name"                  <*>
+          i .:? "dockerfile"            <*>
+          i .:? "ports"      .!= []     <*>
+          i .:? "host"                  <*>
+          i .:? "preStart"              <*>
+          i .:? "interactive" .!= False <*>
           i .:? "startArgs"
       parseJson' img _ = fail $ "Image " ++ img ++ " must be an object"
 
@@ -152,7 +156,7 @@ minimalConfig pImageName pContainerName = Config
   , dockerDirectory = Nothing
   , portMappings    = []
   , hostName        = Nothing
-  , daemonized      = False
+  , interactive     = False
   }
 
 data HelpOutput = HelpOutput

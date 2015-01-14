@@ -32,9 +32,9 @@ parseFlags' args =
     return $! RunCommand o a
   where
     validateActions :: [String] -> Flags -> Either FError Action
-    validateActions [a] o = parseAction a o
-    validateActions []  o = Left (NoAction o)
-    validateActions as  o = Left (MultipleActions as o)
+    validateActions [a] = parseAction a
+    validateActions []  = Left . NoAction
+    validateActions as  = Left . MultipleActions as
 
     parseAction :: String -> Flags -> Either FError Action
     parseAction s o = maybe (Left (UnknownAction s o)) Right $ readAction s
@@ -54,19 +54,21 @@ parseFlags' args =
 
 options :: [OptDescr AddFlag]
 options =
-  [ Option "sw" ["shallow", "skip"]    (NoArg setShallow)
-    "Skip pre-start steps--One skips the pre build, two skip the docker build"
-  , Option "nd"  ["dry-run", "noop"]   (NoArg setDryRun)
+  [ Option "sw" ["shallow", "skip"]  (NoArg setShallow)
+    "Skip pre-start steps"
+  , Option "nd"  ["dry-run", "noop"] (NoArg setDryRun)
     "Only show what would have been done, but don't do it"
-  , Option "q"  ["quiet"]              (NoArg setQuiet)
+  , Option "q"  ["quick"]            (NoArg setQuick)
+    "quick start and stop"
+  , Option "Q"  ["quiet"]            (NoArg setQuiet)
     "Less chatter (twice for even lesser chatter)"
-  , Option "l"  ["linux"]              (NoArg setLinux)
+  , Option "l"  ["linux"]            (NoArg setLinux)
     "When on linux, skip checking for boot2docker"
-  , Option "f"  ["file", "hockerfile"] (ReqArg setHockerFile "FILE")
+  , Option "c"  ["config", "file"]   (ReqArg setHockerFile "FILE")
     "Specify the Hockerfile to use (default is Hockerfile)"
-  , Option "vV" ["version"]            (NoArg setVersion)
+  , Option "vV" ["version"]          (NoArg setVersion)
     "Show the version and exit"
-  , Option "h?" ["help"]               (NoArg setHelp)
+  , Option "h?" ["help"]             (NoArg setHelp)
     "Show this help and exit"
   ]
 
